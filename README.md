@@ -1,0 +1,1 @@
+3d geometry generation using variational autoencoders
