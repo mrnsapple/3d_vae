@@ -1,5 +1,12 @@
 .PHONY: tests docs
 
+init:
+	source ~/.bashrc
+	conda activate demo-data-science
+
+process:
+	python src/process.py
+
 dependencies: 
 	@echo "Initializing Git..."
 	git init
