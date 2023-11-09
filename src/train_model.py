@@ -53,6 +53,8 @@ def getModel(model_path):
 
 def save_image(predictions, image_path):
     for i in range(predictions.shape[0]):
+        if i > 15:
+            break
         plt.subplot(4, 4, i + 1)
         plt.imshow(predictions[i, :, :, 0], cmap="gray")
         plt.axis("off")
@@ -65,6 +67,7 @@ def generate_and_save_images(model, epoch, test_sample, images_folder):
     mean, logvar = model.encode(test_sample)
     z = model.reparameterize(mean, logvar)
     predictions = model.sample(z)
+    # import pdb;pdb.set_trace()
     plt.figure(figsize=(4, 4))
     save_image(predictions, "{}image_at_epoch_{:04d}.png".format(images_folder, epoch))
 
@@ -111,6 +114,7 @@ def perform_training(CVAE, train_dataset, test_dataset, batch_size, images_folde
             )
         )
         generate_and_save_images(model, epoch, test_sample, images_folder)
+    return model
 
 
 @hydra.main(config_path="../config", config_name="main", version_base=None)
@@ -120,19 +124,40 @@ def train_model(config: DictConfig):
         config.data.train_size, config.data.batch_size, config.data.test_size
     )
     model = getModel(config.model.name)
-    perform_training(
+    model = perform_training(
         model.CVAE,
         train_dataset,
         test_dataset,
         config.data.batch_size,
         config.data.final_images,
     )
-    print(model.CVAE)
+    model.save(config.model.checkpoint)
 
-    print(f"Train modeling using {config.data.processed}")
-    print(f"Model used: {config.model.name}")
-    print(f"Save the output to {config.data.final}")
+
+@hydra.main(config_path="../config", config_name="main", version_base=None)
+def eval_model(config: DictConfig):
+    train_dataset, test_dataset = process.load_mnist_dataset_batch(
+        config.data.train_size, config.data.batch_size, config.data.test_size
+    )
+    for test_batch in test_dataset.take(1):
+        # test_sample = test_batch[0:num_examples_to_generate, :, :, :]
+        test_sample = test_batch
+    model = tf.keras.models.load_model(config.model.checkpoint)
+    # save_image(test_sample, "{}eval_image_original.png".format(config.data.final_images))
+    # import pdb;pdb.set_trace()
+    generate_and_save_images(
+        model, 0, test_sample, "{}eval_image.png".format(config.data.final_images)
+    )
+
+    mean, logvar = model.encode(test_sample)
+    model.reparameterize(mean, logvar)
+    plt.figure(figsize=(10, 10))
+    plt.scatter(mean[:, 0], mean[:, 1], cmap="brg")
+    plt.xlabel("dim 1")
+    plt.ylabel("dim 2")
+    plt.colorbar()
+    plt.show()
 
 
 if __name__ == "__main__":
-    train_model()
+    eval_model()

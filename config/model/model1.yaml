@@ -1,1 +1,2 @@
 name: cvae
+checkpoint: models/cvae.keras
