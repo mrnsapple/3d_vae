@@ -15,13 +15,13 @@ import PIL
 import tensorflow as tf
 from omegaconf import DictConfig
 
+import utils
 
 def log_normal_pdf(sample, mean, logvar, raxis=1):
     log2pi = tf.math.log(2.0 * np.pi)
     return tf.reduce_sum(
         -0.5 * ((sample - mean) ** 2.0 * tf.exp(-logvar) + logvar + log2pi), axis=raxis
     )
-
 
 def compute_loss(model, x):
     mean, logvar = model.encode(x)
@@ -33,7 +33,6 @@ def compute_loss(model, x):
     logpz = log_normal_pdf(z, 0.0, 0.0)
     logqz_x = log_normal_pdf(z, mean, logvar)
     return -tf.reduce_mean(logpx_z + logpz - logqz_x)
-
 
 #@tf.function
 def train_step(model, x, optimizer):
@@ -51,7 +50,6 @@ def train_step(model, x, optimizer):
 def getModel(model_path):
     return importlib.import_module(model_path)
 
-
 def save_image(predictions, image_path):
     for i in range(predictions.shape[0]):
         if i > 15:
@@ -63,7 +61,6 @@ def save_image(predictions, image_path):
     plt.savefig(image_path)
     # plt.show()
 
-
 def generate_and_save_images(model, epoch, test_sample, images_folder):
     mean, logvar = model.encode(test_sample)
     z = model.reparameterize(mean, logvar)
@@ -71,15 +68,13 @@ def generate_and_save_images(model, epoch, test_sample, images_folder):
     plt.figure(figsize=(4, 4))
     save_image(predictions, "{}image_at_epoch_{:04d}.png".format(images_folder, epoch))
 
-
 def display_image(epoch_no):
     return PIL.Image.open("image_at_epoch_{:04d}.png".format(epoch_no))
-
 
 def perform_training(CVAE, train_dataset, test_dataset, batch_size, images_folder):
     optimizer = tf.keras.optimizers.Adam(1e-4)
 
-    epochs = 10
+    epochs = 100
     # set the dimensionality of the latent space to a plane for visualization later
     latent_dim = 2
     num_examples_to_generate = 16
@@ -155,5 +150,20 @@ def train_model(config: DictConfig):
     )
     model.save(config.model.checkpoint)
 
+@hydra.main(config_path="../config", config_name="main", version_base=None)
+def test_model(config: DictConfig):
+    model = tf.keras.models.load_model(config.model.checkpoint)
+    dataset : pd.DataFrame = pd.read_csv(config.data.raw)
+    x : np.array = get_vertices(dataset, config.data.model_geo_batch)
+    _, test_dataset = train_test_split(x, config.data.train_percentage, config.data.model_geo_batch, config.data.batch_size)
+    for test_x in test_dataset:
+        mean, logvar = model.encode(test_x)
+        z = model.reparameterize(mean, logvar)
+        predictions = model.sample(z)
+        test_x = tf.reshape(test_x,[test_x.shape[0]*test_x.shape[1], test_x.shape[2], test_x.shape[3]])
+        predictions = tf.reshape(predictions,[predictions.shape[0]*predictions.shape[1], predictions.shape[2], predictions.shape[3]])
+        utils.export_obj(config.data.original_obj, test_x, np.array([]))        
+        utils.export_obj(config.data.created_obj, predictions, np.array([]))
+
 if __name__ == "__main__":
-    train_model()
+    test_model()

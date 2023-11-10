@@ -17,3 +17,5 @@ data:
   model_geo_batch: 60
   final_images: data/final/images
   obj: data/obj/
+  original_obj: data/obj/original_obj.obj
+  created_obj: data/obj/created_obj.obj
