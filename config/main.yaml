@@ -12,8 +12,8 @@ data:
   raw: data/raw/sample.csv
   processed: data/processed/processed.csv
   final: data/final/final.csv
-  train_size: 60
-  batch_size: 10000
-  test_size: 10000
+  train_percentage: 0.8
+  batch_size: 300
+  model_geo_batch: 60
   final_images: data/final/images
   obj: data/obj/

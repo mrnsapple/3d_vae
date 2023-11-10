@@ -9,12 +9,12 @@ class CVAE(tf.keras.Model):
         self.latent_dim = latent_dim
         self.encoder = tf.keras.Sequential(
             [
-                tf.keras.layers.InputLayer(input_shape=(28, 28, 1)),
+                tf.keras.layers.InputLayer(input_shape=(60, 3, 1)),
                 tf.keras.layers.Conv2D(
                     filters=32, kernel_size=3, strides=(2, 2), activation="relu"
                 ),
                 tf.keras.layers.Conv2D(
-                    filters=64, kernel_size=3, strides=(2, 2), activation="relu"
+                    filters=64, kernel_size=1, strides=(1, 1), activation="relu"
                 ),
                 tf.keras.layers.Flatten(),
                 # No activation
@@ -25,19 +25,19 @@ class CVAE(tf.keras.Model):
         self.decoder = tf.keras.Sequential(
             [
                 tf.keras.layers.InputLayer(input_shape=(latent_dim,)),
-                tf.keras.layers.Dense(units=7 * 7 * 32, activation=tf.nn.relu),
-                tf.keras.layers.Reshape(target_shape=(7, 7, 32)),
+                tf.keras.layers.Dense(units=30 * 3 * 32, activation=tf.nn.relu, dtype='float32'),
+                tf.keras.layers.Reshape(target_shape=(30, 3, 32)),
                 tf.keras.layers.Conv2DTranspose(
                     filters=64,
-                    kernel_size=3,
-                    strides=2,
+                    kernel_size=1,
+                    strides=1,
                     padding="same",
                     activation="relu",
                 ),
                 tf.keras.layers.Conv2DTranspose(
                     filters=32,
                     kernel_size=3,
-                    strides=2,
+                    strides=[2,1],
                     padding="same",
                     activation="relu",
                 ),
@@ -73,21 +73,22 @@ class CVAE(tf.keras.Model):
 cvae = CVAE(1)
 print(cvae.encoder.summary())
 print(cvae.decoder.summary())
+
 Model: "sequential"
 _________________________________________________________________
  Layer (type)                Output Shape              Param #   
 =================================================================
- conv2d (Conv2D)             (None, 13, 13, 32)        320       
+ conv2d (Conv2D)             (None, 29, 1, 32)         320       
                                                                  
- conv2d_1 (Conv2D)           (None, 6, 6, 64)          18496     
+ conv2d_1 (Conv2D)           (None, 29, 1, 64)         2112      
                                                                  
- flatten (Flatten)           (None, 2304)              0         
+ flatten (Flatten)           (None, 1856)              0         
                                                                  
- dense (Dense)               (None, 2)                 4610      
+ dense (Dense)               (None, 2)                 3714      
                                                                  
 =================================================================
-Total params: 23426 (91.51 KB)
-Trainable params: 23426 (91.51 KB)
+Total params: 6146 (24.01 KB)
+Trainable params: 6146 (24.01 KB)
 Non-trainable params: 0 (0.00 Byte)
 _________________________________________________________________
 None
@@ -95,21 +96,23 @@ Model: "sequential_1"
 _________________________________________________________________
  Layer (type)                Output Shape              Param #   
 =================================================================
- dense_1 (Dense)             (None, 1568)              3136      
+ dense_1 (Dense)             (None, 2880)              5760      
                                                                  
- reshape (Reshape)           (None, 7, 7, 32)          0         
+ reshape (Reshape)           (None, 30, 3, 32)         0         
                                                                  
- conv2d_transpose (Conv2DTr  (None, 14, 14, 64)        18496     
+ conv2d_transpose (Conv2DTr  (None, 30, 3, 64)         2112      
  anspose)                                                        
                                                                  
- conv2d_transpose_1 (Conv2D  (None, 28, 28, 32)        18464     
+ conv2d_transpose_1 (Conv2D  (None, 60, 3, 32)         18464     
  Transpose)                                                      
                                                                  
- conv2d_transpose_2 (Conv2D  (None, 28, 28, 1)         289       
+ conv2d_transpose_2 (Conv2D  (None, 60, 3, 1)          289       
  Transpose)                                                      
                                                                  
 =================================================================
-Total params: 40385 (157.75 KB)
-Trainable params: 40385 (157.75 KB)
+Total params: 26625 (104.00 KB)
+Trainable params: 26625 (104.00 KB)
 Non-trainable params: 0 (0.00 Byte)
+_________________________________________________________________
+None
 """

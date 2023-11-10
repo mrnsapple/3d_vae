@@ -7,7 +7,6 @@ import os
 import hydra
 import numpy as np
 import pandas as pd
-import tensorflow as tf
 from omegaconf import DictConfig
 
 def load_obj(fn):

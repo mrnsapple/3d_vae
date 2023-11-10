@@ -10,8 +10,8 @@ import time
 import hydra
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import PIL
-import process
 import tensorflow as tf
 from omegaconf import DictConfig
 
@@ -27,6 +27,7 @@ def compute_loss(model, x):
     mean, logvar = model.encode(x)
     z = model.reparameterize(mean, logvar)
     x_logit = model.decode(z)
+    x = tf.cast(x, dtype=tf.float32)
     cross_ent = tf.nn.sigmoid_cross_entropy_with_logits(logits=x_logit, labels=x)
     logpx_z = -tf.reduce_sum(cross_ent, axis=[1, 2, 3])
     logpz = log_normal_pdf(z, 0.0, 0.0)
@@ -34,7 +35,7 @@ def compute_loss(model, x):
     return -tf.reduce_mean(logpx_z + logpz - logqz_x)
 
 
-@tf.function
+#@tf.function
 def train_step(model, x, optimizer):
     """Executes one training step and returns the loss.
 
@@ -67,7 +68,6 @@ def generate_and_save_images(model, epoch, test_sample, images_folder):
     mean, logvar = model.encode(test_sample)
     z = model.reparameterize(mean, logvar)
     predictions = model.sample(z)
-    # import pdb;pdb.set_trace()
     plt.figure(figsize=(4, 4))
     save_image(predictions, "{}image_at_epoch_{:04d}.png".format(images_folder, epoch))
 
@@ -92,9 +92,9 @@ def perform_training(CVAE, train_dataset, test_dataset, batch_size, images_folde
     # Pick a sample of the test set for generating output images
     assert batch_size >= num_examples_to_generate
     for test_batch in test_dataset.take(1):
-        test_sample = test_batch[0:num_examples_to_generate, :, :, :]
-    save_image(test_sample, "{}base.png".format(images_folder))
-    generate_and_save_images(model, 0, test_sample, images_folder)
+        test_sample = test_batch#[0:num_examples_to_generate, :, :, :]
+    #save_image(test_sample, "{}base.png".format(images_folder))
+    #generate_and_save_images(model, 0, test_sample, images_folder)
 
     for epoch in range(1, epochs + 1):
         print("Start epoch")
@@ -113,16 +113,38 @@ def perform_training(CVAE, train_dataset, test_dataset, batch_size, images_folde
                 epoch, elbo, end_time - start_time
             )
         )
-        generate_and_save_images(model, epoch, test_sample, images_folder)
+        #generate_and_save_images(model, epoch, test_sample, images_folder)
     return model
 
+def get_vertices(dataset : pd.DataFrame, model_geo_batch:int):
+    dataset : pd.DataFrame = dataset[dataset.columns[1:4]]
+    vertices : np.array = dataset.to_numpy()
+    print(vertices.shape)
+    num_batches = int(vertices.size/(model_geo_batch*3))
+    # Removed unused points, this is required to not get an error in
+    # the following reshaping step
+    vertices = vertices[:num_batches * model_geo_batch]
+    vertices = vertices.reshape((num_batches, model_geo_batch, 3))
+    return vertices
+
+def train_test_split(dataset : np.array, train_percentage: float, model_geo_batch, batch_size: int):
+    train_dataset  = dataset[:int(dataset.shape[0]*train_percentage)]
+    test_dataset =  dataset[int(dataset.shape[0]*(train_percentage)):]
+    print("train_dataset", train_dataset.shape)
+    train_dataset = train_dataset.reshape((train_dataset.shape[0], model_geo_batch, 3, 1))
+    test_dataset = test_dataset.reshape((test_dataset.shape[0], model_geo_batch, 3, 1))
+    test_dataset = tf.data.Dataset.from_tensor_slices(test_dataset).batch(batch_size)
+    train_dataset = tf.data.Dataset.from_tensor_slices(train_dataset).batch(batch_size)
+    return train_dataset, test_dataset
 
 @hydra.main(config_path="../config", config_name="main", version_base=None)
 def train_model(config: DictConfig):
     """Function to train the model"""
-    train_dataset, test_dataset = process.load_mnist_dataset_batch(
-        config.data.train_size, config.data.batch_size, config.data.test_size
-    )
+    dataset : pd.DataFrame = pd.read_csv(config.data.raw)
+    x : np.array = get_vertices(dataset, config.data.model_geo_batch)
+    print(x.shape)
+    train_dataset, test_dataset = train_test_split(x, config.data.train_percentage, config.data.model_geo_batch, config.data.batch_size)
+    #return
     model = getModel(config.model.name)
     model = perform_training(
         model.CVAE,
@@ -132,32 +154,6 @@ def train_model(config: DictConfig):
         config.data.final_images,
     )
     model.save(config.model.checkpoint)
-
-
-@hydra.main(config_path="../config", config_name="main", version_base=None)
-def eval_model(config: DictConfig):
-    train_dataset, test_dataset = process.load_mnist_dataset_batch(
-        config.data.train_size, config.data.batch_size, config.data.test_size
-    )
-    for test_batch in test_dataset.take(1):
-        # test_sample = test_batch[0:num_examples_to_generate, :, :, :]
-        test_sample = test_batch
-    model = tf.keras.models.load_model(config.model.checkpoint)
-    # save_image(test_sample, "{}eval_image_original.png".format(config.data.final_images))
-    # import pdb;pdb.set_trace()
-    generate_and_save_images(
-        model, 0, test_sample, "{}eval_image.png".format(config.data.final_images)
-    )
-
-    mean, logvar = model.encode(test_sample)
-    model.reparameterize(mean, logvar)
-    plt.figure(figsize=(10, 10))
-    plt.scatter(mean[:, 0], mean[:, 1], cmap="brg")
-    plt.xlabel("dim 1")
-    plt.ylabel("dim 2")
-    plt.colorbar()
-    plt.show()
-
 
 if __name__ == "__main__":
     train_model()
