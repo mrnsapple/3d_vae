@@ -12,7 +12,7 @@ data:
   raw: data/raw/sample.csv
   processed: data/processed/processed.csv
   final: data/final/final.csv
-  train_size: 60000
+  train_size: 60
   batch_size: 10000
   test_size: 10000
   final_images: data/final/images

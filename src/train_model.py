@@ -160,4 +160,4 @@ def eval_model(config: DictConfig):
 
 
 if __name__ == "__main__":
-    eval_model()
+    train_model()

@@ -3,40 +3,12 @@ This is the demo code that uses hydra to access the parameters in under the dire
 
 Author: Khuyen Tran
 """
-
+import os
 import hydra
 import numpy as np
+import pandas as pd
 import tensorflow as tf
 from omegaconf import DictConfig
-
-
-def preprocess_images(images):
-    images = images.reshape((images.shape[0], 28, 28, 1)) / 255.0
-    return np.where(images > 0.5, 1.0, 0.0).astype("float32")
-
-
-def load_mnist_dataset():
-    # https://www.tensorflow.org/api_docs/python/tf/keras/datasets/mnist/load_data
-    (train_images, _), (test_images, _) = tf.keras.datasets.mnist.load_data()
-    train_images = preprocess_images(train_images)
-    test_images = preprocess_images(test_images)
-    return train_images, test_images
-
-
-def load_mnist_dataset_batch(train_size, batch_size, test_size):
-    train_images, test_images = load_mnist_dataset()
-    train_dataset = (
-        tf.data.Dataset.from_tensor_slices(train_images)
-        .shuffle(train_size)
-        .batch(batch_size)
-    )
-    test_dataset = (
-        tf.data.Dataset.from_tensor_slices(test_images)
-        .shuffle(test_size)
-        .batch(batch_size)
-    )
-    return train_dataset, test_dataset
-
 
 def load_obj(fn):
     fin = open(fn, "r")
@@ -68,9 +40,14 @@ def export_obj(out, v, f):
 def process_data(config: DictConfig):
     """Function to process the data"""
     # tf.data.Dataset.zip(train_dataset, test_dataset).save(config.data.final)
-    v, f = load_obj(config.data.obj)
-    print(v, f)
-    export_obj("/home/oriol/tools/3d_vae/data/obj/testout.obj", v, np.array())
+    raw_dataset = pd.DataFrame()
+    for obj in os.listdir(config.data.obj):
+        v, f = load_obj("{}{}".format(config.data.obj, obj))
+        v_dataframe = pd.DataFrame(v, columns = ["X", "Y", "Z"])
+        v_dataframe['obj_name'] = obj
+        raw_dataset = pd.concat([raw_dataset, v_dataframe])
+    raw_dataset.to_csv(config.data.raw)
+    print("The dataset shape:{}".format(raw_dataset))
     print(f"Process data using {config.data.raw}")
     print(f"Columns used: {config.process.use_columns}")
 
