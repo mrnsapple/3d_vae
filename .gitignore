@@ -91,3 +91,7 @@ target/
 
 # Hydra logs
 outputs
+
+data/
+!data/hip/*.hipnc
+models/

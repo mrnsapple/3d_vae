@@ -227,7 +227,8 @@ class PrepareVae(tf.keras.Model):
         return self.decode(eps, apply_sigmoid=True)
 
     def encode(self, x):
-        mean, logvar = tf.split(self.encoder(x), num_or_size_splits=2, axis=1)
+        return self.encoder(x)[2]
+        mean, logvar = tf.split(self.encoder(x)[2], num_or_size_splits=2, axis=1)
         return mean, logvar
 
     def reparameterize(self, mean, logvar):

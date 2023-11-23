@@ -11,9 +11,9 @@ defaults:
 data:
   model_plots: docs/
 
-  raw: data/raw/sample.csv
-  processed: data/processed/processed.csv
-  final: data/final/final.csv
+  raw: data/raw
+  processed: data/processed
+  final: data/final
   train_percentage: 0.8
   model_geo_batch: 500
   final_images: data/final/images

@@ -7,13 +7,11 @@ Author: Khuyen Tran
 import importlib
 
 import hydra
-import numpy as np
-import pandas as pd
 import tensorflow as tf
+from data_retrieval import data_loader
 from omegaconf import DictConfig
 from tensorflow.keras.callbacks import LearningRateScheduler
 from tensorflow.keras.utils import plot_model
-from utils import npytar
 
 
 def getModel(model_path):
@@ -22,17 +20,8 @@ def getModel(model_path):
 
 def learning_rate_scheduler(epoch, lr):
     if epoch >= 1:
-        lr = learning_rate_2
+        lr = 0.005
     return lr
-
-
-def data_loader(fname, input_shape):
-    reader = npytar.NpyTarReader(fname)
-    xc = np.zeros((reader.length(),) + input_shape, dtype=np.float32)
-    reader.reopen()
-    for ix, (x, _name) in enumerate(reader):
-        xc[ix] = x.astype(np.float32)
-    return 3.0 * xc - 1.0
 
 
 @hydra.main(config_path="../config", config_name="main", version_base=None)
@@ -65,7 +54,7 @@ def train_model(config: DictConfig):
     )
     tf.debugging.disable_traceback_filtering()
     data_train = data_loader(
-        "/home/oriol/tools/3D-VAE/datasets/shapenet10_chairs_nr.tar",
+        config.data.raw,
         config.model.input_shape,
     )
     vae.fit(
@@ -78,38 +67,5 @@ def train_model(config: DictConfig):
     vae.save_weights(config.model.checkpoint)
 
 
-@hydra.main(config_path="../config", config_name="main", version_base=None)
-def test_model(config: DictConfig):
-    model = tf.keras.models.load_model(config.model.checkpoint)
-    dataset: pd.DataFrame = pd.read_csv(config.data.raw)
-    x: np.array = get_vertices(dataset, config.data.model_geo_batch)
-    _, test_dataset = train_test_split(
-        x,
-        config.data.train_percentage,
-        config.data.model_geo_batch,
-        config.model.batch_size,
-    )
-    for test_x in test_dataset:
-        mean, logvar = model.encode(test_x)
-        z = model.reparameterize(mean, logvar)
-        predictions = model.sample(z)
-        test_x = tf.reshape(
-            test_x,
-            [test_x.shape[0] * test_x.shape[1], test_x.shape[2], test_x.shape[3]],
-        )
-        predictions = tf.reshape(
-            predictions,
-            [
-                predictions.shape[0] * predictions.shape[1],
-                predictions.shape[2],
-                predictions.shape[3],
-            ],
-        )
-        print("Exporting objs")
-        utils.export_obj(config.data.original_obj, test_x, np.array([]))
-        utils.export_obj(config.data.created_obj, predictions, np.array([]))
-
-
 if __name__ == "__main__":
     train_model()
-    # test_model()
